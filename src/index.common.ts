@@ -1,99 +1,57 @@
-/**
- * RE: SIMULATED - Common Engine Configuration
- * 
- * This module contains the shared configuration and initialization logic
- * used by both development and production builds of the RE: SIMULATED demo.
- * It sets up the Chromatiq engine with all necessary shaders, timing,
- * and animation parameters.
- */
-
 import { Chromatiq } from "./chromatiq"
 import { mix, clamp, saturate, Vector3, remap, remapFrom, remapTo, easeInOutCubic, easeInOutCubicVelocity } from "./math"
 
-/**
- * Webpack DefinePlugin variable for build-time configuration
- */
+// for Webpack DefinePlugin
 declare var PRODUCTION: boolean;
 
 /**
- * Main Chromatiq Engine Instance
+ * Main Chromatiq engine configuration
+ * メインChromatiqエンジンの設定
  * 
- * This creates the primary rendering engine with carefully tuned parameters
- * for the RE: SIMULATED demo. The configuration includes:
- * - Precise timing synchronized with the music (140 BPM)
- * - Multi-pass rendering pipeline with bloom effects
- * - GPU-based procedural sound synthesis
+ * This creates a 109.71 second demo with multi-pass rendering pipeline
+ * 109.71秒のデモをマルチパスレンダリングパイプラインで作成します
  */
 export const chromatiq = new Chromatiq(
-    109.714285714,                                  // Demo duration in seconds (synced to 140 BPM music)
+    109.714285714,// デモの長さ（秒） / Demo duration in seconds
     require("./shaders/build-in/vertex.glsl").default,
 
-    /**
-     * Image Rendering Pipeline
-     * 
-     * The demo uses a multi-pass rendering approach where each shader
-     * represents a different scene or effect. The common header provides
-     * shared utility functions across all image shaders.
-     */
+    // Image Shaders
+    // 画像シェーダー (Image Shaders)
     require("./shaders/common-header.glsl").default,
     [
-        require("./shaders/raymarching-mandel.glsl").default,    // Mandelbrot fractal scenes
-        require("./shaders/raymarching-universe.glsl").default,  // Space/universe scenes
-        require("./shaders/text-resimulated.glsl").default,      // Title text rendering
-        require("./shaders/post-effect.glsl").default,           // Final post-processing
-        // require("./shaders/effects/debug-circle.glsl").default, // Debug shader (disabled)
+        require("./shaders/raymarching-mandel.glsl").default, // Mandelbrot fractal rendering / マンデルブロ図形レンダリング
+        require("./shaders/raymarching-universe.glsl").default, // Universe scene / 宇宙シーン
+        require("./shaders/text-resimulated.glsl").default, // Text rendering / テキストレンダリング
+        require("./shaders/post-effect.glsl").default, // Post-processing effects / ポストプロセッシング効果
+        // require("./shaders/effects/debug-circle.glsl").default,
     ],
 
-    /**
-     * Bloom Post-Processing Configuration
-     * 
-     * Bloom creates a glowing effect around bright areas and is essential
-     * for the demo's visual aesthetics. The parameters control:
-     * - Which passes receive bloom (starting from index 3)
-     * - Downsampling iterations for blur quality (5 levels)
-     */
-    3,                                              // First pass index that receives bloom
-    5,                                              // Number of bloom downsampling iterations
-    require("./shaders/build-in/bloom-prefilter.glsl").default,
-    require("./shaders/build-in/bloom-downsample.glsl").default,
-    require("./shaders/build-in/bloom-upsample.glsl").default,
-    require("./shaders/build-in/bloom-final.glsl").default,
+    // Bloom
+    // ブルーム効果設定 (Bloom effect configuration)
+    3, // Bloom iterations / ブルーム反復回数
+    5, // Bloom downsample levels / ブルームダウンサンプルレベル
+    require("./shaders/build-in/bloom-prefilter.glsl").default, // Prefilter bright areas / 明るい領域の事前フィルター
+    require("./shaders/build-in/bloom-downsample.glsl").default, // Downsample for blur / ブラー用ダウンサンプル
+    require("./shaders/build-in/bloom-upsample.glsl").default, // Upsample and blend / アップサンプルとブレンド
+    require("./shaders/build-in/bloom-final.glsl").default, // Final bloom composition / 最終ブルーム合成
 
-    /**
-     * GPU-Based Sound Synthesis
-     * 
-     * The demo uses GLSL shaders to generate audio procedurally on the GPU.
-     * This technique, inspired by Shadertoy's sound shaders, allows for
-     * complex audio synthesis while keeping file size minimal.
-     */
+    // Sound Shader
+    // サウンドシェーダー (Sound Shader) - GPU-based audio synthesis
     require("./shaders/sound-resimulated.glsl").default,
 
+    // Text Texture
+    // テキストテクスチャ生成関数 (Text Texture Generation Function)
     /**
-     * Dynamic Text Texture Generation
-     * 
-     * This function creates a texture atlas containing all text displayed
-     * in the demo. Text is rendered to a 2D canvas and uploaded to GPU
-     * as a texture for use in shaders.
-     * 
-     * The texture atlas has a maximum capacity of 32 text entries
-     * (4096px width / 128px per text = 32 slots).
+     * Creates a dynamic texture atlas for rendering text in shaders
+     * シェーダーでテキストをレンダリングするための動的テクスチャアトラスを作成します
      */
     gl => {
         const canvas = document.createElement("canvas");
         const textCtx = canvas.getContext("2d");
-        // Optional: Uncomment to debug text rendering in browser
         // window.document.body.appendChild(canvas);
 
-        /**
-         * Text Content Database
-         * 
-         * Array of all text strings displayed in the demo, including:
-         * - Credits and titles
-         * - Celestial body names (planets, moons, etc.)
-         * - Technical terms and labels
-         * 
-         * Each text entry can be referenced by its array index in shaders.
-         */
+        // MAX: 4096 / 128 = 32
+        // テキスト文字列の配列 (Array of text strings)
         const texts = [
             /* 0 */ "A 64K INTRO",
             /* 1 */ "GRAPHICS",

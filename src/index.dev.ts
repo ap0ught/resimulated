@@ -1,83 +1,42 @@
 /**
- * RE: SIMULATED - Development Build Entry Point
+ * Development build entry point with debugging tools
+ * デバッグツール付きの開発ビルドエントリーポイント
  * 
- * This is the development version with comprehensive debugging tools,
- * parameter controls, and export functionality. It's designed for
- * iterative development and fine-tuning of the demo's visual effects.
- * 
- * Development Features:
- * - dat.GUI interface for real-time parameter adjustment
- * - Camera debug controls with Three.js OrbitControls
- * - Frame capture and audio export functionality
- * - Resolution and timing controls
- * - Performance monitoring and statistics
+ * Features dat.GUI controls, export functionality, and Three.js OrbitControls
+ * dat.GUIコントロール、エクスポート機能、Three.js OrbitControlsを搭載
  */
-
 import { chromatiq, animateUniforms } from './index.common'
 
-/**
- * Development Dependencies
- * These libraries are only included in development builds to provide
- * debugging and authoring tools without affecting production size.
- */
-import * as dat from 'dat.gui';                    // Parameter tweaking interface
-import { saveAs } from 'file-saver';               // File export functionality
-import { bufferToWave } from "./buffer-to-wave";   // Audio export utility
+import * as dat from 'dat.gui';
+import { saveAs } from 'file-saver';
+import { bufferToWave } from "./buffer-to-wave";
 
-/**
- * Three.js Integration for Debug Camera
- * Provides 3D camera controls for inspecting scenes from different angles.
- * Only used in development to understand spatial relationships in shaders.
- */
 import * as three from 'three';
 const THREE = require('three')
 import 'imports-loader?THREE=three!../node_modules/three/examples/js/controls/OrbitControls.js'
 
-/**
- * Development Environment Initialization
- * 
- * Sets up the complete development environment with debugging tools,
- * parameter controls, and export utilities.
- */
 window.addEventListener("load", ev => {
-    /**
-     * Engine Initialization
-     * 
-     * Start the Chromatiq engine immediately in development mode
-     * to enable live editing and parameter tweaking.
-     */
     chromatiq.init();
     chromatiq.play();
 
-    /**
-     * dat.GUI Development Interface
-     * 
-     * Creates the main debugging interface with persistent settings.
-     * The GUI provides real-time control over all aspects of the demo.
-     */
+    // dat.GUI
+    // dat.GUIコントロールパネルの設定 (dat.GUI control panel setup)
     const gui = new dat.GUI();
-    gui.useLocalStorage = true;                     // Persist settings between sessions
+    gui.useLocalStorage = true;
 
     /**
-     * Development Configuration Object
-     * 
-     * Central configuration for all development-specific settings.
-     * These parameters are not available in production builds.
+     * Development configuration options
+     * 開発設定オプション
      */
     const config = {
-        debugCamera: false,                         // Enable free camera movement
-        debugParams: false,                         // Show shader parameter debugging
-        debugDisableReset: false,                   // Disable automatic state resets
-        resolution: "1920x1080",                    // Output resolution for captures
-        timeMode: "beat",                           // Timing reference (beat/second)
-        bpm: 140,                                   // Beats per minute for music sync
+        debugCamera: false,    // Enable camera debugging / カメラデバッグを有効化
+        debugParams: false,    // Enable parameter debugging / パラメーターデバッグを有効化
+        debugDisableReset: false, // Disable animation reset / アニメーションリセットを無効化
+        resolution: "1920x1080",  // Render resolution / レンダリング解像度
+        timeMode: "beat",      // Time display mode / 時間表示モード
+        bpm: 140,             // Beats per minute / 毎分拍数
     }
 
-    /**
-     * Debug Controls Folder
-     * 
-     * Primary debugging options that affect engine behavior and visualization.
-     */
     const debugFolder = gui.addFolder("debug");
     debugFolder.add(config, "debugCamera").onChange(value => {
         if (value) {
@@ -110,10 +69,15 @@ window.addEventListener("load", ev => {
         onBeatLengthUpdate();
     });
     // NOTE: 使用頻度が低いのでmisc送りに
+    // NOTE: Moved to misc folder due to low usage frequency
     miscFolder.add(chromatiq, "debugFrameNumber", -1, 30, 1).onChange(value => {
         chromatiq.needsUpdate = true;
     });
 
+    /**
+     * Export and save functions
+     * エクスポートと保存関数
+     */
     const saevFunctions = {
         saveImage: () => {
             chromatiq.canvas.toBlob(blob => {
@@ -271,11 +235,13 @@ window.addEventListener("load", ev => {
         timeBar.max = timeLengthInput.value;
 
         // tickmarksの子要素を全て削除します
+        // Remove all child elements from tickmarks
         for (let i = timeTickmarks.childNodes.length - 1; i >= 0; i--) {
             timeTickmarks.removeChild(timeTickmarks.childNodes[i]);
         }
 
         // 1秒刻みにラベルを置きます
+        // Place labels at 1-second intervals
         for (let i = 0; i < timeLengthInput.valueAsNumber; i++) {
             const option = document.createElement("option");
             option.value = i.toString();
@@ -288,11 +254,13 @@ window.addEventListener("load", ev => {
         beatBar.max = beatLengthInput.value;
 
         // tickmarksの子要素を全て削除します
+        // Remove all child elements from tickmarks
         for (let i = beatTickmarks.childNodes.length - 1; i >= 0; i--) {
             beatTickmarks.removeChild(beatTickmarks.childNodes[i]);
         }
 
         // 4ビート刻みにラベルを置きます
+        // Place labels at 4-beat intervals
         for (let i = 0; i < beatLengthInput.valueAsNumber; i += 4) {
             const option = document.createElement("option");
             option.value = i.toString();

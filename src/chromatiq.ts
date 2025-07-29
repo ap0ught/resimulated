@@ -1,115 +1,86 @@
-/**
- * Webpack DefinePlugin global variables
- * These are injected during the build process to provide environment-specific configuration
- */
+// for Webpack DefinePlugin
 declare var PRODUCTION: boolean;
 declare var GLOBAL_UNIFORMS: boolean;
 declare var PLAY_SOUND_FILE: string;
 
+// NOTE: enum はコードサイズが増えるため利用禁止とします
+// NOTE: Enums increase code size, so they are prohibited
+// NOTE: https://twitter.com/gam0022/status/1236668659285647368
 /**
- * Rendering pass type definitions.
- * 
- * Using const objects instead of TypeScript enums to minimize bundle size
- * in the 64KB intro constraint. Enums generate additional JavaScript code
- * that increases the final bundle size.
- * 
- * Reference: https://twitter.com/gam0022/status/1236668659285647368
+ * Pass types for the rendering pipeline
+ * レンダリングパイプライン用のパスタイプ
  */
 const PassType = {
-    Image: 0 as const,          // Standard image rendering pass
-    FinalImage: 1 as const,     // Final composition pass  
-    Bloom: 2 as const,          // Bloom post-processing pass
-    BloomUpsample: 3 as const,  // Bloom upsampling pass
-    Sound: 4 as const,          // Sound generation pass
+    Image: 0 as const,
+    FinalImage: 1 as const,
+    Bloom: 2 as const,
+    BloomUpsample: 3 as const,
+    Sound: 4 as const,
 }
 
 type PassType = typeof PassType[keyof typeof PassType]
 
 /**
- * Represents a single rendering pass in the graphics pipeline.
- * Each pass encapsulates a shader program, its uniforms, and render targets.
+ * Rendering pass configuration
+ * レンダリングパスの設定
  */
 class Pass {
-    type: PassType;                                          // The type of rendering pass
-    index: number;                                           // Pass index in the pipeline
-    program: WebGLProgram;                                   // Compiled shader program
-    uniforms: { [index: string]: { type: string, value: any } }; // Uniform variable definitions
-    locations: { [index: string]: WebGLUniformLocation };   // Cached uniform locations
-    frameBuffer: WebGLFramebuffer;                           // Render target framebuffer
-    texture: WebGLTexture;                                   // Output texture
-    scale: number;                                           // Rendering resolution scale factor
+    type: PassType;
+    index: number;
+    program: WebGLProgram;
+    uniforms: { [index: string]: { type: string, value: any } };
+    locations: { [index: string]: WebGLUniformLocation };
+    frameBuffer: WebGLFramebuffer;
+    texture: WebGLTexture;
+    scale: number;
 }
 
-/**
- * Audio texture dimensions for sound synthesis.
- * These define the resolution of the texture used for audio generation
- * in the GPU-based sound shader system.
- */
+// GPU音声合成用のテクスチャサイズ (Texture size for GPU audio synthesis)
 const SOUND_WIDTH = 512;
 const SOUND_HEIGHT = 512;
 
 /**
- * Chromatiq - A WebGL Engine for 64KB Intros
+ * Custom WebGL2 rendering engine optimized for 64KB intros
+ * 64KBイントロ用に最適化されたカスタムWebGL2レンダリングエンジン
  * 
- * This is a lightweight WebGL rendering engine designed specifically for
- * creating 64KB intros - a type of real-time graphics demo with strict
- * file size constraints. The engine provides essential features like
- * multi-pass rendering, bloom effects, and GPU-based sound synthesis
- * while maintaining minimal code size.
- * 
- * Key Features:
- * - Multi-pass image shader rendering
- * - Built-in bloom post-processing
- * - GPU-based sound synthesis (GLSL Sound)
- * - Uniform animation system
- * - Minimal memory footprint
+ * Features multi-pass rendering with bloom post-processing and GPU audio synthesis
+ * ブルームポストプロセッシングとGPU音声合成によるマルチパスレンダリング機能
  */
 export class Chromatiq {
-    /** The total duration of the demo/animation in seconds */
+    /** 再生時間の長さです */
+    /** Duration of playback time */
     timeLength: number;
 
-    /** Flag indicating whether the demo is currently playing */
+    /** 再生中かどうかのフラグです */
+    /** Flag indicating whether playback is active */
     isPlaying: boolean;
 
-    /** 
-     * Forces a render update even when paused (isPlaying = false).
-     * Useful for debugging and manual frame stepping.
-     */
+    /** 強制描画。ポーズ中（isPlaying = false）に描画するために利用します */
+    /** Force rendering. Used for drawing during pause (isPlaying = false) */
     needsUpdate: boolean;
 
+    /** 再生時間（秒）です */
     /** Current playback time in seconds */
     time: number;
 
-    /** 
-     * Callback function executed before rendering each frame.
-     * Only called when playing (isPlaying = true).
-     * Use this to animate uniforms and update per-frame parameters.
-     */
+    /** レンダリングの直前に実行されるコールバック関数です。ポーズ中（isPlaying = false）は実行されません */
+    /** Callback function executed just before rendering. Not executed during pause (isPlaying = false) */
     onRender: (time: number, timeDelta: number) => void;
 
-    /** 
-     * Callback function executed every frame regardless of play state.
-     * Called even when paused (isPlaying = false).
-     * Use this for UI updates and non-time-dependent logic.
-     */
+    /** 毎フレーム実行されるコールバック関数です。ポーズ中（isPlaying = false）も実行されます */
+    /** Callback function executed every frame. Executed even during pause (isPlaying = false) */
     onUpdate: () => void;
 
     canvas: HTMLCanvasElement;
     audioContext: AudioContext;
     audioSource: AudioBufferSourceNode;
 
-    /**
-     * Global uniform variable definitions.
-     * This array defines all animatable parameters exposed to shaders,
-     * including their initial values, ranges, and UI grouping.
-     */
+    // global uniforms
+    // グローバルユニフォーム (Global uniforms)
     uniformArray: { key: string, initValue: any, min?: number, max?: number, group?: string }[];
 
-    /** 
-     * Runtime uniform values accessible from external code.
-     * Modify these values to create animations and interactive effects.
-     * Changes are automatically synchronized with GPU shaders.
-     */
+    /** 値をクラス外から操作することでアニメーションが可能です */
+    /** Animation is possible by manipulating values from outside the class */
     uniforms: { [key: string]: any };
 
     init: () => void;
@@ -119,32 +90,10 @@ export class Chromatiq {
     playSound: () => void;
     stopSound: () => void;
 
-    /** 
-     * Debug parameter for isolating specific rendering passes.
-     * Set to the index of an imageShader to render only that pass.
-     * Special values:
-     * - -1: Disable debug mode (normal rendering)
-     * - 30: Show text texture
-     * - Any valid imageShader index: Show only that pass
-     */
+    /** 特定のパスを強制表示するデバッグ用のパラメーターです。imageShaders の index を指定します。 -1 はデバッグを無効。 30 は TextTexture です。 */
+    /** Debug parameter to force display of specific pass. Specify index of imageShaders. -1 disables debug. 30 is TextTexture. */
     debugFrameNumber: number;
 
-    /**
-     * Creates a new Chromatiq engine instance.
-     * 
-     * @param timeLength - Duration of the demo in seconds
-     * @param vertexShader - Vertex shader source code for all passes
-     * @param imageCommonHeaderShader - Common header included in all image shaders
-     * @param imageShaders - Array of fragment shader sources for image rendering
-     * @param bloomPassBeginIndex - Index of the first pass that should receive bloom
-     * @param bloomDonwsampleIterations - Number of bloom downsampling iterations
-     * @param bloomPrefilterShader - Shader for bloom brightness threshold filtering
-     * @param bloomDownsampleShader - Shader for bloom downsampling passes
-     * @param bloomUpsampleShader - Shader for bloom upsampling passes  
-     * @param bloomFinalShader - Shader for final bloom composition
-     * @param soundShader - GLSL shader for procedural sound generation
-     * @param createTextTexture - Function to generate text texture for the engine
-     */
     constructor(
         timeLength: number,
         vertexShader: string,
@@ -161,68 +110,40 @@ export class Chromatiq {
         soundShader: string,
         createTextTexture: (gl: WebGL2RenderingContext) => WebGLTexture,
     ) {
-        /**
-         * Method Definition Strategy for Size Optimization
-         * 
-         * To minimize bundle size in the 64KB constraint, methods are defined
-         * dynamically within the constructor rather than as class methods.
-         * This reduces 'this' references and overall code size.
-         * 
-         * Only data that needs external access is defined as class fields.
-         */
+        // NOTE: フィールド参照の this を使うとコードサイズが増えるため、コンストラクタの中で動的にメソッドを定義することで、this の利用を最小限にしています
+        // NOTE: Using field reference 'this' increases code size, so methods are dynamically defined in constructor to minimize 'this' usage
+        // NOTE: クラス外から値を参照・設定する必要があるデータのみ、フィールドとして定義する方針とします
+        // NOTE: Only data that needs to be referenced/set from outside the class is defined as fields
         this.init = () => {
-            /**
-             * Initialize Engine State
-             */
             this.timeLength = timeLength;
             this.isPlaying = true;
             this.needsUpdate = false;
             this.time = 0;
             this.debugFrameNumber = -1;
 
-            /**
-             * Global Uniforms System
-             * Initialize the uniform management system if enabled.
-             * This system allows dynamic control of shader parameters.
-             */
             if (GLOBAL_UNIFORMS) {
                 this.uniformArray = [];
                 this.uniforms = {};
             }
 
-            /**
-             * WebAudio Context Initialization
-             * Create the audio context for sound playback and synthesis.
-             */
+            // get WebAudio context
             const audio = this.audioContext = new window.AudioContext();
 
-            /**
-             * Canvas and WebGL Context Setup
-             * Create the rendering canvas and WebGL2 context with required extensions.
-             */
+            // get WebGL context
             const canvas = this.canvas = document.createElement("canvas");
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
             window.document.body.appendChild(canvas);
 
-            /**
-             * WebGL2 Context Creation
-             * WebGL2 provides essential features like 3D textures and transform feedback.
-             * Supported from Firefox 51+ and Chrome 56+.
-             * preserveDrawingBuffer is enabled for screenshot/recording functionality.
-             */
+            // WebGL2 enabled default from: firefox-51, chrome-56
+            // NOTE: toBlob 等でレンダリング結果を保存するために preserveDrawingBuffer を有効にしています
+            // NOTE: preserveDrawingBuffer is enabled to save rendering results with toBlob etc.
             const gl = canvas.getContext("webgl2", { preserveDrawingBuffer: true });
             if (!gl) {
                 console.log("WebGL 2 is not supported...");
                 return;
             }
 
-            /**
-             * Essential WebGL Extensions
-             * These extensions are required for high-quality rendering:
-             * - EXT_color_buffer_float: Enables float render targets for HDR
-             * - OES_texture_float_linear: Enables linear filtering on float textures
-             */
             const ext = gl.getExtension("EXT_color_buffer_float");
             if (!ext) {
                 alert("need EXT_color_buffer_float");
@@ -235,16 +156,9 @@ export class Chromatiq {
                 return;
             }
 
-            /**
-             * Basic OpenGL State Setup
-             */
             gl.enable(gl.CULL_FACE);
 
-            /**
-             * Fullscreen Quad Geometry Setup
-             * Creates a simple quad that covers the entire viewport.
-             * All rendering is done using image shaders on this quad.
-             */
+            // drawing data (as viewport square)
             const vert2d = [[1, 1], [-1, 1], [1, -1], [-1, -1]];
             const vert2dData = new Float32Array([].concat(...vert2d));
             const vertBuf = gl.createBuffer();
@@ -252,10 +166,6 @@ export class Chromatiq {
             gl.bufferData(gl.ARRAY_BUFFER, vert2dData, gl.STATIC_DRAW);
             gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
-            /**
-             * Index Buffer for Quad Triangulation
-             * Defines two triangles that form the fullscreen quad.
-             */
             const index = [[0, 1, 2], [3, 2, 1]];
             const indexData = new Uint16Array([].concat(...index));
             const indexBuf = gl.createBuffer();
@@ -263,12 +173,10 @@ export class Chromatiq {
             gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indexData, gl.STATIC_DRAW);
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 
-            /**
-             * Vertex Array Object (VAO) Setup
-             * VAOs encapsulate vertex attribute state for efficient rendering.
-             */
+            // opengl3 VAO
             const vertexArray = gl.createVertexArray();
             const setupVAO = (program: WebGLProgram) => {
+                // setup buffers and attributes to the VAO
                 gl.bindVertexArray(vertexArray);
                 // bind buffer data
                 gl.bindBuffer(gl.ARRAY_BUFFER, vertBuf);
@@ -304,6 +212,7 @@ export class Chromatiq {
                             console.log(src, log);
                         } else {
                             // NOTE: CommonHeaderを考慮してエラーの行番号を変換します
+                            // NOTE: Convert error line numbers considering CommonHeader
                             const log = gl.getShaderInfoLog(shader).replace(/(\d+):(\d+)/g, (match: string, p1: string, p2: string) => {
                                 const line = parseInt(p2);
                                 if (line <= imageCommonHeaderShaderLineCount) {
@@ -362,10 +271,12 @@ export class Chromatiq {
                 }
 
                 // フレームバッファを生成します
+                // Generate framebuffer
                 pass.frameBuffer = gl.createFramebuffer();
                 gl.bindFramebuffer(gl.FRAMEBUFFER, pass.frameBuffer);
 
                 // フレームバッファ用テクスチャを生成します
+                // Generate texture for framebuffer
                 pass.texture = gl.createTexture();
                 gl.bindTexture(gl.TEXTURE_2D, pass.texture);
                 gl.texImage2D(gl.TEXTURE_2D, 0, format, width, height, 0, gl.RGBA, type, null);
@@ -375,9 +286,11 @@ export class Chromatiq {
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
                 // フレームバッファにテクスチャを関連付けます
+                // Associate texture with framebuffer
                 gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, pass.texture, 0);
 
                 // 各種オブジェクトのバインドを解除します
+                // Unbind various objects
                 gl.bindTexture(gl.TEXTURE_2D, null);
                 gl.bindRenderbuffer(gl.RENDERBUFFER, null);
                 gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -447,6 +360,7 @@ export class Chromatiq {
                             gl.bindTexture(gl.TEXTURE_2D, textTexture);
                         } else if (!PRODUCTION && this.debugFrameNumber >= 0 && key === "iPrevPass" && pass.type === PassType.FinalImage) {
                             // NOTE: 特定パスを強制表示するためのデバッグ用の処理です
+                            // NOTE: Debug processing to force display of specific pass
                             if (this.debugFrameNumber == 30) {
                                 gl.bindTexture(gl.TEXTURE_2D, textTexture);
                             } else {
