@@ -4,7 +4,12 @@ declare var GLOBAL_UNIFORMS: boolean;
 declare var PLAY_SOUND_FILE: string;
 
 // NOTE: enum はコードサイズが増えるため利用禁止とします
+// NOTE: Enums increase code size, so they are prohibited
 // NOTE: https://twitter.com/gam0022/status/1236668659285647368
+/**
+ * Pass types for the rendering pipeline
+ * レンダリングパイプライン用のパスタイプ
+ */
 const PassType = {
     Image: 0 as const,
     FinalImage: 1 as const,
@@ -15,6 +20,10 @@ const PassType = {
 
 type PassType = typeof PassType[keyof typeof PassType]
 
+/**
+ * Rendering pass configuration
+ * レンダリングパスの設定
+ */
 class Pass {
     type: PassType;
     index: number;
@@ -26,26 +35,40 @@ class Pass {
     scale: number;
 }
 
+// GPU音声合成用のテクスチャサイズ (Texture size for GPU audio synthesis)
 const SOUND_WIDTH = 512;
 const SOUND_HEIGHT = 512;
 
+/**
+ * Custom WebGL2 rendering engine optimized for 64KB intros
+ * 64KBイントロ用に最適化されたカスタムWebGL2レンダリングエンジン
+ * 
+ * Features multi-pass rendering with bloom post-processing and GPU audio synthesis
+ * ブルームポストプロセッシングとGPU音声合成によるマルチパスレンダリング機能
+ */
 export class Chromatiq {
     /** 再生時間の長さです */
+    /** Duration of playback time */
     timeLength: number;
 
     /** 再生中かどうかのフラグです */
+    /** Flag indicating whether playback is active */
     isPlaying: boolean;
 
     /** 強制描画。ポーズ中（isPlaying = false）に描画するために利用します */
+    /** Force rendering. Used for drawing during pause (isPlaying = false) */
     needsUpdate: boolean;
 
     /** 再生時間（秒）です */
+    /** Current playback time in seconds */
     time: number;
 
     /** レンダリングの直前に実行されるコールバック関数です。ポーズ中（isPlaying = false）は実行されません */
+    /** Callback function executed just before rendering. Not executed during pause (isPlaying = false) */
     onRender: (time: number, timeDelta: number) => void;
 
     /** 毎フレーム実行されるコールバック関数です。ポーズ中（isPlaying = false）も実行されます */
+    /** Callback function executed every frame. Executed even during pause (isPlaying = false) */
     onUpdate: () => void;
 
     canvas: HTMLCanvasElement;
@@ -53,9 +76,11 @@ export class Chromatiq {
     audioSource: AudioBufferSourceNode;
 
     // global uniforms
+    // グローバルユニフォーム (Global uniforms)
     uniformArray: { key: string, initValue: any, min?: number, max?: number, group?: string }[];
 
     /** 値をクラス外から操作することでアニメーションが可能です */
+    /** Animation is possible by manipulating values from outside the class */
     uniforms: { [key: string]: any };
 
     init: () => void;
@@ -66,6 +91,7 @@ export class Chromatiq {
     stopSound: () => void;
 
     /** 特定のパスを強制表示するデバッグ用のパラメーターです。imageShaders の index を指定します。 -1 はデバッグを無効。 30 は TextTexture です。 */
+    /** Debug parameter to force display of specific pass. Specify index of imageShaders. -1 disables debug. 30 is TextTexture. */
     debugFrameNumber: number;
 
     constructor(
@@ -85,7 +111,9 @@ export class Chromatiq {
         createTextTexture: (gl: WebGL2RenderingContext) => WebGLTexture,
     ) {
         // NOTE: フィールド参照の this を使うとコードサイズが増えるため、コンストラクタの中で動的にメソッドを定義することで、this の利用を最小限にしています
+        // NOTE: Using field reference 'this' increases code size, so methods are dynamically defined in constructor to minimize 'this' usage
         // NOTE: クラス外から値を参照・設定する必要があるデータのみ、フィールドとして定義する方針とします
+        // NOTE: Only data that needs to be referenced/set from outside the class is defined as fields
         this.init = () => {
             this.timeLength = timeLength;
             this.isPlaying = true;
@@ -109,6 +137,7 @@ export class Chromatiq {
 
             // WebGL2 enabled default from: firefox-51, chrome-56
             // NOTE: toBlob 等でレンダリング結果を保存するために preserveDrawingBuffer を有効にしています
+            // NOTE: preserveDrawingBuffer is enabled to save rendering results with toBlob etc.
             const gl = canvas.getContext("webgl2", { preserveDrawingBuffer: true });
             if (!gl) {
                 console.log("WebGL 2 is not supported...");
@@ -183,6 +212,7 @@ export class Chromatiq {
                             console.log(src, log);
                         } else {
                             // NOTE: CommonHeaderを考慮してエラーの行番号を変換します
+                            // NOTE: Convert error line numbers considering CommonHeader
                             const log = gl.getShaderInfoLog(shader).replace(/(\d+):(\d+)/g, (match: string, p1: string, p2: string) => {
                                 const line = parseInt(p2);
                                 if (line <= imageCommonHeaderShaderLineCount) {
@@ -241,10 +271,12 @@ export class Chromatiq {
                 }
 
                 // フレームバッファを生成します
+                // Generate framebuffer
                 pass.frameBuffer = gl.createFramebuffer();
                 gl.bindFramebuffer(gl.FRAMEBUFFER, pass.frameBuffer);
 
                 // フレームバッファ用テクスチャを生成します
+                // Generate texture for framebuffer
                 pass.texture = gl.createTexture();
                 gl.bindTexture(gl.TEXTURE_2D, pass.texture);
                 gl.texImage2D(gl.TEXTURE_2D, 0, format, width, height, 0, gl.RGBA, type, null);
@@ -254,9 +286,11 @@ export class Chromatiq {
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
                 // フレームバッファにテクスチャを関連付けます
+                // Associate texture with framebuffer
                 gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, pass.texture, 0);
 
                 // 各種オブジェクトのバインドを解除します
+                // Unbind various objects
                 gl.bindTexture(gl.TEXTURE_2D, null);
                 gl.bindRenderbuffer(gl.RENDERBUFFER, null);
                 gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -326,6 +360,7 @@ export class Chromatiq {
                             gl.bindTexture(gl.TEXTURE_2D, textTexture);
                         } else if (!PRODUCTION && this.debugFrameNumber >= 0 && key === "iPrevPass" && pass.type === PassType.FinalImage) {
                             // NOTE: 特定パスを強制表示するためのデバッグ用の処理です
+                            // NOTE: Debug processing to force display of specific pass
                             if (this.debugFrameNumber == 30) {
                                 gl.bindTexture(gl.TEXTURE_2D, textTexture);
                             } else {

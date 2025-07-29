@@ -4,38 +4,54 @@ import { mix, clamp, saturate, Vector3, remap, remapFrom, remapTo, easeInOutCubi
 // for Webpack DefinePlugin
 declare var PRODUCTION: boolean;
 
+/**
+ * Main Chromatiq engine configuration
+ * メインChromatiqエンジンの設定
+ * 
+ * This creates a 109.71 second demo with multi-pass rendering pipeline
+ * 109.71秒のデモをマルチパスレンダリングパイプラインで作成します
+ */
 export const chromatiq = new Chromatiq(
-    109.714285714,// デモの長さ（秒）
+    109.714285714,// デモの長さ（秒） / Demo duration in seconds
     require("./shaders/build-in/vertex.glsl").default,
 
     // Image Shaders
+    // 画像シェーダー (Image Shaders)
     require("./shaders/common-header.glsl").default,
     [
-        require("./shaders/raymarching-mandel.glsl").default,
-        require("./shaders/raymarching-universe.glsl").default,
-        require("./shaders/text-resimulated.glsl").default,
-        require("./shaders/post-effect.glsl").default,
+        require("./shaders/raymarching-mandel.glsl").default, // Mandelbrot fractal rendering / マンデルブロ図形レンダリング
+        require("./shaders/raymarching-universe.glsl").default, // Universe scene / 宇宙シーン
+        require("./shaders/text-resimulated.glsl").default, // Text rendering / テキストレンダリング
+        require("./shaders/post-effect.glsl").default, // Post-processing effects / ポストプロセッシング効果
         // require("./shaders/effects/debug-circle.glsl").default,
     ],
 
     // Bloom
-    3,
-    5,
-    require("./shaders/build-in/bloom-prefilter.glsl").default,
-    require("./shaders/build-in/bloom-downsample.glsl").default,
-    require("./shaders/build-in/bloom-upsample.glsl").default,
-    require("./shaders/build-in/bloom-final.glsl").default,
+    // ブルーム効果設定 (Bloom effect configuration)
+    3, // Bloom iterations / ブルーム反復回数
+    5, // Bloom downsample levels / ブルームダウンサンプルレベル
+    require("./shaders/build-in/bloom-prefilter.glsl").default, // Prefilter bright areas / 明るい領域の事前フィルター
+    require("./shaders/build-in/bloom-downsample.glsl").default, // Downsample for blur / ブラー用ダウンサンプル
+    require("./shaders/build-in/bloom-upsample.glsl").default, // Upsample and blend / アップサンプルとブレンド
+    require("./shaders/build-in/bloom-final.glsl").default, // Final bloom composition / 最終ブルーム合成
 
     // Sound Shader
+    // サウンドシェーダー (Sound Shader) - GPU-based audio synthesis
     require("./shaders/sound-resimulated.glsl").default,
 
     // Text Texture
+    // テキストテクスチャ生成関数 (Text Texture Generation Function)
+    /**
+     * Creates a dynamic texture atlas for rendering text in shaders
+     * シェーダーでテキストをレンダリングするための動的テクスチャアトラスを作成します
+     */
     gl => {
         const canvas = document.createElement("canvas");
         const textCtx = canvas.getContext("2d");
         // window.document.body.appendChild(canvas);
 
         // MAX: 4096 / 128 = 32
+        // テキスト文字列の配列 (Array of text strings)
         const texts = [
             /* 0 */ "A 64K INTRO",
             /* 1 */ "GRAPHICS",

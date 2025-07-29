@@ -1,3 +1,10 @@
+/**
+ * Development build entry point with debugging tools
+ * デバッグツール付きの開発ビルドエントリーポイント
+ * 
+ * Features dat.GUI controls, export functionality, and Three.js OrbitControls
+ * dat.GUIコントロール、エクスポート機能、Three.js OrbitControlsを搭載
+ */
 import { chromatiq, animateUniforms } from './index.common'
 
 import * as dat from 'dat.gui';
@@ -13,16 +20,21 @@ window.addEventListener("load", ev => {
     chromatiq.play();
 
     // dat.GUI
+    // dat.GUIコントロールパネルの設定 (dat.GUI control panel setup)
     const gui = new dat.GUI();
     gui.useLocalStorage = true;
 
+    /**
+     * Development configuration options
+     * 開発設定オプション
+     */
     const config = {
-        debugCamera: false,
-        debugParams: false,
-        debugDisableReset: false,
-        resolution: "1920x1080",
-        timeMode: "beat",
-        bpm: 140,
+        debugCamera: false,    // Enable camera debugging / カメラデバッグを有効化
+        debugParams: false,    // Enable parameter debugging / パラメーターデバッグを有効化
+        debugDisableReset: false, // Disable animation reset / アニメーションリセットを無効化
+        resolution: "1920x1080",  // Render resolution / レンダリング解像度
+        timeMode: "beat",      // Time display mode / 時間表示モード
+        bpm: 140,             // Beats per minute / 毎分拍数
     }
 
     const debugFolder = gui.addFolder("debug");
@@ -57,10 +69,15 @@ window.addEventListener("load", ev => {
         onBeatLengthUpdate();
     });
     // NOTE: 使用頻度が低いのでmisc送りに
+    // NOTE: Moved to misc folder due to low usage frequency
     miscFolder.add(chromatiq, "debugFrameNumber", -1, 30, 1).onChange(value => {
         chromatiq.needsUpdate = true;
     });
 
+    /**
+     * Export and save functions
+     * エクスポートと保存関数
+     */
     const saevFunctions = {
         saveImage: () => {
             chromatiq.canvas.toBlob(blob => {
@@ -218,11 +235,13 @@ window.addEventListener("load", ev => {
         timeBar.max = timeLengthInput.value;
 
         // tickmarksの子要素を全て削除します
+        // Remove all child elements from tickmarks
         for (let i = timeTickmarks.childNodes.length - 1; i >= 0; i--) {
             timeTickmarks.removeChild(timeTickmarks.childNodes[i]);
         }
 
         // 1秒刻みにラベルを置きます
+        // Place labels at 1-second intervals
         for (let i = 0; i < timeLengthInput.valueAsNumber; i++) {
             const option = document.createElement("option");
             option.value = i.toString();
@@ -235,11 +254,13 @@ window.addEventListener("load", ev => {
         beatBar.max = beatLengthInput.value;
 
         // tickmarksの子要素を全て削除します
+        // Remove all child elements from tickmarks
         for (let i = beatTickmarks.childNodes.length - 1; i >= 0; i--) {
             beatTickmarks.removeChild(beatTickmarks.childNodes[i]);
         }
 
         // 4ビート刻みにラベルを置きます
+        // Place labels at 4-beat intervals
         for (let i = 0; i < beatLengthInput.valueAsNumber; i += 4) {
             const option = document.createElement("option");
             option.value = i.toString();
