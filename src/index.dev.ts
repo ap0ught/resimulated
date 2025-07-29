@@ -1,30 +1,83 @@
+/**
+ * RE: SIMULATED - Development Build Entry Point
+ * 
+ * This is the development version with comprehensive debugging tools,
+ * parameter controls, and export functionality. It's designed for
+ * iterative development and fine-tuning of the demo's visual effects.
+ * 
+ * Development Features:
+ * - dat.GUI interface for real-time parameter adjustment
+ * - Camera debug controls with Three.js OrbitControls
+ * - Frame capture and audio export functionality
+ * - Resolution and timing controls
+ * - Performance monitoring and statistics
+ */
+
 import { chromatiq, animateUniforms } from './index.common'
 
-import * as dat from 'dat.gui';
-import { saveAs } from 'file-saver';
-import { bufferToWave } from "./buffer-to-wave";
+/**
+ * Development Dependencies
+ * These libraries are only included in development builds to provide
+ * debugging and authoring tools without affecting production size.
+ */
+import * as dat from 'dat.gui';                    // Parameter tweaking interface
+import { saveAs } from 'file-saver';               // File export functionality
+import { bufferToWave } from "./buffer-to-wave";   // Audio export utility
 
+/**
+ * Three.js Integration for Debug Camera
+ * Provides 3D camera controls for inspecting scenes from different angles.
+ * Only used in development to understand spatial relationships in shaders.
+ */
 import * as three from 'three';
 const THREE = require('three')
 import 'imports-loader?THREE=three!../node_modules/three/examples/js/controls/OrbitControls.js'
 
+/**
+ * Development Environment Initialization
+ * 
+ * Sets up the complete development environment with debugging tools,
+ * parameter controls, and export utilities.
+ */
 window.addEventListener("load", ev => {
+    /**
+     * Engine Initialization
+     * 
+     * Start the Chromatiq engine immediately in development mode
+     * to enable live editing and parameter tweaking.
+     */
     chromatiq.init();
     chromatiq.play();
 
-    // dat.GUI
+    /**
+     * dat.GUI Development Interface
+     * 
+     * Creates the main debugging interface with persistent settings.
+     * The GUI provides real-time control over all aspects of the demo.
+     */
     const gui = new dat.GUI();
-    gui.useLocalStorage = true;
+    gui.useLocalStorage = true;                     // Persist settings between sessions
 
+    /**
+     * Development Configuration Object
+     * 
+     * Central configuration for all development-specific settings.
+     * These parameters are not available in production builds.
+     */
     const config = {
-        debugCamera: false,
-        debugParams: false,
-        debugDisableReset: false,
-        resolution: "1920x1080",
-        timeMode: "beat",
-        bpm: 140,
+        debugCamera: false,                         // Enable free camera movement
+        debugParams: false,                         // Show shader parameter debugging
+        debugDisableReset: false,                   // Disable automatic state resets
+        resolution: "1920x1080",                    // Output resolution for captures
+        timeMode: "beat",                           // Timing reference (beat/second)
+        bpm: 140,                                   // Beats per minute for music sync
     }
 
+    /**
+     * Debug Controls Folder
+     * 
+     * Primary debugging options that affect engine behavior and visualization.
+     */
     const debugFolder = gui.addFolder("debug");
     debugFolder.add(config, "debugCamera").onChange(value => {
         if (value) {
