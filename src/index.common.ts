@@ -1,41 +1,99 @@
+/**
+ * RE: SIMULATED - Common Engine Configuration
+ * 
+ * This module contains the shared configuration and initialization logic
+ * used by both development and production builds of the RE: SIMULATED demo.
+ * It sets up the Chromatiq engine with all necessary shaders, timing,
+ * and animation parameters.
+ */
+
 import { Chromatiq } from "./chromatiq"
 import { mix, clamp, saturate, Vector3, remap, remapFrom, remapTo, easeInOutCubic, easeInOutCubicVelocity } from "./math"
 
-// for Webpack DefinePlugin
+/**
+ * Webpack DefinePlugin variable for build-time configuration
+ */
 declare var PRODUCTION: boolean;
 
+/**
+ * Main Chromatiq Engine Instance
+ * 
+ * This creates the primary rendering engine with carefully tuned parameters
+ * for the RE: SIMULATED demo. The configuration includes:
+ * - Precise timing synchronized with the music (140 BPM)
+ * - Multi-pass rendering pipeline with bloom effects
+ * - GPU-based procedural sound synthesis
+ */
 export const chromatiq = new Chromatiq(
-    109.714285714,// デモの長さ（秒）
+    109.714285714,                                  // Demo duration in seconds (synced to 140 BPM music)
     require("./shaders/build-in/vertex.glsl").default,
 
-    // Image Shaders
+    /**
+     * Image Rendering Pipeline
+     * 
+     * The demo uses a multi-pass rendering approach where each shader
+     * represents a different scene or effect. The common header provides
+     * shared utility functions across all image shaders.
+     */
     require("./shaders/common-header.glsl").default,
     [
-        require("./shaders/raymarching-mandel.glsl").default,
-        require("./shaders/raymarching-universe.glsl").default,
-        require("./shaders/text-resimulated.glsl").default,
-        require("./shaders/post-effect.glsl").default,
-        // require("./shaders/effects/debug-circle.glsl").default,
+        require("./shaders/raymarching-mandel.glsl").default,    // Mandelbrot fractal scenes
+        require("./shaders/raymarching-universe.glsl").default,  // Space/universe scenes
+        require("./shaders/text-resimulated.glsl").default,      // Title text rendering
+        require("./shaders/post-effect.glsl").default,           // Final post-processing
+        // require("./shaders/effects/debug-circle.glsl").default, // Debug shader (disabled)
     ],
 
-    // Bloom
-    3,
-    5,
+    /**
+     * Bloom Post-Processing Configuration
+     * 
+     * Bloom creates a glowing effect around bright areas and is essential
+     * for the demo's visual aesthetics. The parameters control:
+     * - Which passes receive bloom (starting from index 3)
+     * - Downsampling iterations for blur quality (5 levels)
+     */
+    3,                                              // First pass index that receives bloom
+    5,                                              // Number of bloom downsampling iterations
     require("./shaders/build-in/bloom-prefilter.glsl").default,
     require("./shaders/build-in/bloom-downsample.glsl").default,
     require("./shaders/build-in/bloom-upsample.glsl").default,
     require("./shaders/build-in/bloom-final.glsl").default,
 
-    // Sound Shader
+    /**
+     * GPU-Based Sound Synthesis
+     * 
+     * The demo uses GLSL shaders to generate audio procedurally on the GPU.
+     * This technique, inspired by Shadertoy's sound shaders, allows for
+     * complex audio synthesis while keeping file size minimal.
+     */
     require("./shaders/sound-resimulated.glsl").default,
 
-    // Text Texture
+    /**
+     * Dynamic Text Texture Generation
+     * 
+     * This function creates a texture atlas containing all text displayed
+     * in the demo. Text is rendered to a 2D canvas and uploaded to GPU
+     * as a texture for use in shaders.
+     * 
+     * The texture atlas has a maximum capacity of 32 text entries
+     * (4096px width / 128px per text = 32 slots).
+     */
     gl => {
         const canvas = document.createElement("canvas");
         const textCtx = canvas.getContext("2d");
+        // Optional: Uncomment to debug text rendering in browser
         // window.document.body.appendChild(canvas);
 
-        // MAX: 4096 / 128 = 32
+        /**
+         * Text Content Database
+         * 
+         * Array of all text strings displayed in the demo, including:
+         * - Credits and titles
+         * - Celestial body names (planets, moons, etc.)
+         * - Technical terms and labels
+         * 
+         * Each text entry can be referenced by its array index in shaders.
+         */
         const texts = [
             /* 0 */ "A 64K INTRO",
             /* 1 */ "GRAPHICS",
